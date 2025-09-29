@@ -19,11 +19,17 @@ sudo npm install -g pm2
 sudo apt install nginx -y
 
 # Clone your repository (replace with your repo URL)
-git clone https://github.com/yourusername/cleanekiti-mvp.git
-cd cleanekiti-mvp
+git clone https://github.com/bankolejohn/clean-ekiti.git
+cd clean-ekiti
 
-# Install dependencies
-npm install
+# Add swap space for small instances
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# Install dependencies with memory optimization
+npm install --production --no-optional
 
 # Create production environment file
 cat > .env.local << EOF
@@ -38,8 +44,11 @@ JWT_SECRET=your_production_jwt_secret_here_change_this
 ADMIN_EMAIL=bankolejohn@gmail.com
 EOF
 
+# Install dev dependencies for build
+npm install
+
 # Build the application
-npm run build
+NODE_OPTIONS="--max-old-space-size=2048" npm run build
 
 # Start with PM2
 pm2 start npm --name "cleanekiti" -- start
