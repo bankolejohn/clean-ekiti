@@ -55,14 +55,17 @@ CREATE POLICY "Public can view reports" ON reports
 CREATE POLICY "Public can insert reports" ON reports
     FOR INSERT WITH CHECK (true);
 
--- Only authenticated users can update/delete reports (admin only)
-CREATE POLICY "Only admins can update reports" ON reports
-    FOR UPDATE USING (false);
+-- Only service role can update/delete reports (admin only)
+CREATE POLICY "Service role can update reports" ON reports
+    FOR UPDATE USING (auth.role() = 'service_role');
 
-CREATE POLICY "Only admins can delete reports" ON reports
-    FOR DELETE USING (false);
+CREATE POLICY "Service role can delete reports" ON reports
+    FOR DELETE USING (auth.role() = 'service_role');
 
--- Admin users policies (restrict all access)
+-- Admin users policies (allow service role access)
+CREATE POLICY "Service role can access admin_users" ON admin_users
+    FOR ALL USING (auth.role() = 'service_role');
+
 CREATE POLICY "No public access to admin_users" ON admin_users
     FOR ALL USING (false);
 
