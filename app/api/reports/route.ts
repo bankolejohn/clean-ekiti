@@ -49,30 +49,6 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
 
-    // Send email notification to admin (optional)
-    if (process.env.RESEND_API_KEY && process.env.ADMIN_EMAIL) {
-      try {
-        const { Resend } = require('resend')
-        const resend = new Resend(process.env.RESEND_API_KEY)
-        
-        await resend.emails.send({
-          from: 'CleanEkiti <noreply@cleanekiti.com>',
-          to: process.env.ADMIN_EMAIL,
-          subject: `New Environmental Report: ${category}`,
-          html: `
-            <h2>New Report Submitted</h2>
-            <p><strong>Category:</strong> ${category}</p>
-            <p><strong>Description:</strong> ${description || 'No description provided'}</p>
-            <p><strong>Location:</strong> ${latitude}, ${longitude}</p>
-            ${image_url ? `<p><strong>Image:</strong> <a href="${image_url}">View Image</a></p>` : ''}
-            <p><strong>Reporter Email:</strong> ${reporter_email || 'Not provided'}</p>
-          `
-        })
-      } catch (emailError) {
-        console.error('Failed to send email notification:', emailError)
-      }
-    }
-
     return NextResponse.json({ report })
   } catch (error) {
     console.error('Error creating report:', error)
