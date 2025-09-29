@@ -31,18 +31,40 @@ sudo swapon /swapfile
 # Install dependencies with memory optimization
 npm install --production --no-optional
 
-# Create production environment file
-cat > .env.local << EOF
-NEXT_PUBLIC_SUPABASE_URL=https://xoptyjfkxicciunkpriv.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvcHR5amZreGljY2l1bmtwcml2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwODg4NDYsImV4cCI6MjA3NDY2NDg0Nn0.9NrgKsfxketZSEHvbdqtAAyxYVwcJ3Fmqdu8J5hcow0
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvcHR5amZreGljY2l1bmtwcml2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTA4ODg0NiwiZXhwIjoyMDc0NjY0ODQ2fQ.AsC2VyicisJAIWQbQ8p3U2gmYPUajq__YS6zJZ3-KyI
-CLOUDINARY_CLOUD_NAME=dxtzyipor
-CLOUDINARY_API_KEY=663891567155665
-CLOUDINARY_API_SECRET=gAWnIM2Y4_sx6J60WDqwReWMxOs
-RESEND_API_KEY=demo_resend_key
-JWT_SECRET=your_production_jwt_secret_here_change_this
-ADMIN_EMAIL=bankolejohn@gmail.com
+# Check if .env.local exists, if not create template
+if [ ! -f .env.local ]; then
+    echo "⚠️  Creating .env.local template - PLEASE UPDATE WITH YOUR CREDENTIALS!"
+    cat > .env.local << EOF
+# Production Environment Variables
+# IMPORTANT: Replace all values below with your actual credentials
+
+# Supabase (Required)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+
+# Cloudinary (Required for image uploads)
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+
+# Email (Optional - for notifications)
+RESEND_API_KEY=your_resend_api_key_here
+
+# JWT (Required for admin authentication)
+JWT_SECRET=your_super_secure_jwt_secret_at_least_32_characters_long
+
+# Admin Email
+ADMIN_EMAIL=admin@yourdomain.com
 EOF
+    
+    echo "❌ DEPLOYMENT PAUSED!"
+    echo "📝 Please edit .env.local with your actual credentials, then run this script again."
+    echo "💡 You can also upload your .env.local file directly to the server."
+    exit 1
+else
+    echo "✅ Found existing .env.local file"
+fi
 
 # Install dev dependencies for build
 npm install
@@ -55,5 +77,29 @@ pm2 start npm --name "cleanekiti" -- start
 pm2 save
 pm2 startup
 
-echo "✅ Application deployed and running on port 3000"
-echo "🔧 Configure Nginx reverse proxy next..."
+# Configure Nginx
+sudo cp nginx-config.conf /etc/nginx/sites-available/cleanekiti
+sudo ln -sf /etc/nginx/sites-available/cleanekiti /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
+
+# Configure firewall
+sudo ufw allow 22
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw --force enable
+
+echo "✅ Application deployed and running!"
+echo "🌐 Access your app at: http://your-server-ip"
+echo ""
+echo "🔧 Next Steps:"
+echo "   1. Update domain in /etc/nginx/sites-available/cleanekiti"
+echo "   2. Set up SSL certificates for HTTPS"
+echo "   3. Change default admin password (admin/admin123)"
+echo "   4. Test all functionality (reports, images, admin panel)"
+echo ""
+echo "📋 Admin Access:"
+echo "   URL: http://your-server-ip/admin/login"
+echo "   Username: admin"
+echo "   Password: admin123"
+echo "   ⚠️  CHANGE THIS PASSWORD IMMEDIATELY!"

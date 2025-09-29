@@ -5,7 +5,6 @@ import { verifyPassword, generateToken } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     const { username, password } = await request.json()
-    console.log('Login attempt:', { username, password })
 
     const { data: admin, error } = await supabaseAdmin
       .from('admin_users')
@@ -13,23 +12,16 @@ export async function POST(request: NextRequest) {
       .eq('username', username)
       .single()
 
-    console.log('Admin query result:', { admin, error })
-
     if (error || !admin) {
-      console.log('Admin not found')
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 
     const isValidPassword = await verifyPassword(password, admin.password_hash)
-    console.log('Password validation:', { isValidPassword, providedPassword: password, storedHash: admin.password_hash })
-    
     if (!isValidPassword) {
-      console.log('Password validation failed')
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 
     const token = generateToken(admin.id)
-    console.log('Generated token:', token)
 
     const response = NextResponse.json({ 
       message: 'Login successful',
@@ -45,7 +37,6 @@ export async function POST(request: NextRequest) {
 
     return response
   } catch (error) {
-    console.error('Login error:', error)
     return NextResponse.json({ error: 'Login failed' }, { status: 500 })
   }
 }

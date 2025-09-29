@@ -28,11 +28,21 @@ export async function POST(request: NextRequest) {
     const reporter_email = formData.get('reporter_email') as string
     const image = formData.get('image') as File
 
+    console.log('Report submission:', { category, hasImage: image && image.size > 0, imageSize: image?.size })
+
     let image_url = null
     if (image && image.size > 0) {
-      image_url = await uploadImage(image)
+      try {
+        console.log('Starting image upload...')
+        image_url = await uploadImage(image)
+        console.log('Image uploaded successfully:', image_url)
+      } catch (uploadError) {
+        console.error('Image upload failed:', uploadError)
+        return NextResponse.json({ error: 'Image upload failed' }, { status: 500 })
+      }
     }
 
+    console.log('Inserting report to database...')
     const { data: report, error } = await supabase
       .from('reports')
       .insert({
@@ -47,8 +57,12 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Database error:', error)
+      throw error
+    }
 
+    console.log('Report created successfully:', report.id)
     return NextResponse.json({ report })
   } catch (error) {
     console.error('Error creating report:', error)
