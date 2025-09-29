@@ -31,7 +31,7 @@ export default function AdminDashboard() {
     }
   }
 
-  const updateReportStatus = async (id: string, status: string) => {
+  const updateReportStatus = async (id: string, status: Report['status']) => {
     try {
       const response = await fetch('/api/admin/reports', {
         method: 'PUT',
