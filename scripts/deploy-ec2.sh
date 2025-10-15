@@ -18,9 +18,21 @@ sudo npm install -g pm2
 # Install Nginx
 sudo apt install nginx -y
 
+# Clean up any existing installation
+rm -rf clean-ekiti
+
 # Clone your repository (replace with your repo URL)
+echo "📥 Cloning repository..."
 git clone https://github.com/bankolejohn/clean-ekiti.git
 cd clean-ekiti
+
+# Verify git clone was successful
+if [ ! -f "package.json" ]; then
+    echo "❌ Git clone failed or incomplete!"
+    exit 1
+fi
+
+echo "✅ Repository cloned successfully"
 
 # Add swap space for small instances
 sudo fallocate -l 2G /swapfile
@@ -28,8 +40,24 @@ sudo chmod 600 /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
 
-# Install dependencies with memory optimization
-npm install --production --no-optional
+# Clean npm cache and install dependencies
+echo "📦 Installing dependencies..."
+npm cache clean --force
+npm install --no-optional
+
+# Verify critical dependencies
+echo "🔍 Verifying dependencies..."
+if [ ! -d "node_modules/tailwindcss" ]; then
+    echo "❌ TailwindCSS not installed properly!"
+    npm install tailwindcss --save-dev
+fi
+
+if [ ! -d "node_modules/next" ]; then
+    echo "❌ Next.js not installed properly!"
+    exit 1
+fi
+
+echo "✅ Dependencies verified"
 
 # Check if .env.local exists, if not create template
 if [ ! -f .env.local ]; then
@@ -66,10 +94,27 @@ else
     echo "✅ Found existing .env.local file"
 fi
 
-# Install dev dependencies for build
-npm install
+# Verify all required files exist
+echo "🔍 Verifying project structure..."
+if [ ! -d "components" ]; then
+    echo "❌ Missing components directory!"
+    exit 1
+fi
 
-# Build the application
+if [ ! -d "app" ]; then
+    echo "❌ Missing app directory!"
+    exit 1
+fi
+
+if [ ! -f "tailwind.config.js" ]; then
+    echo "❌ Missing tailwind.config.js!"
+    exit 1
+fi
+
+echo "✅ Project structure verified"
+
+# Build the application with increased memory
+echo "🏗️ Building application..."
 NODE_OPTIONS="--max-old-space-size=2048" npm run build
 
 # Start with PM2
@@ -78,9 +123,14 @@ pm2 save
 pm2 startup
 
 # Configure Nginx
-sudo cp nginx-config.conf /etc/nginx/sites-available/cleanekiti
+sudo cp scripts/nginx-config.conf /etc/nginx/sites-available/cleanekiti
 sudo ln -sf /etc/nginx/sites-available/cleanekiti /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
+
+# Update the config with your server IP
+sudo sed -i 's/your-domain.com/'"$(curl -s http://checkip.amazonaws.com)"'/g' /etc/nginx/sites-available/cleanekiti
+
+# Test and reload Nginx
 sudo nginx -t && sudo systemctl reload nginx
 
 # Configure firewall

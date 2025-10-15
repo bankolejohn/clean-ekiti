@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Debug Admin Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        input,
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        button {
+            background: #2E8B57;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .error {
+            color: red;
+            background: #ffe6e6;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .success {
+            color: green;
+            background: #e6ffe6;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .debug {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Debug Admin Login</h2>
+    <form id="loginForm">
+        <input type="text" id="username" placeholder="Username" value="bankolejohn@gmail.com">
+        <input type="password" id="password" placeholder="Password" value="admin123">
+        <button type="submit">Login</button>
+    </form>
+
+    <div id="result"></div>
+    <div id="debug"></div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('result');
+            const debugDiv = document.getElementById('debug');
+
+            resultDiv.innerHTML = '<div>Attempting login...</div>';
+            debugDiv.innerHTML = '<div class="debug">Debug: Starting login process</div>';
+
+            try {
+                debugDiv.innerHTML += '<div class="debug">Debug: Making fetch request to /api/admin/login</div>';
+
+                const response = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                debugDiv.innerHTML += `<div class="debug">Debug: Response status: ${response.status}</div>`;
+                debugDiv.innerHTML += `<div class="debug">Debug: Response ok: ${response.ok}</div>`;
+
+                const data = await response.json();
+                debugDiv.innerHTML += `<div class="debug">Debug: Response data: ${JSON.stringify(data)}</div>`;
+
+                if (response.ok) {
+                    resultDiv.innerHTML = '<div class="success">Login successful! Redirecting...</div>';
+                    setTimeout(() => {
+                        window.location.href = '/admin';
+                    }, 1000);
+                } else {
+                    resultDiv.innerHTML = `<div class="error">Login failed: ${data.error || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                debugDiv.innerHTML += `<div class="debug">Debug: Catch error: ${error.message}</div>`;
+                resultDiv.innerHTML = `<div class="error">Network error: ${error.message}</div>`;
+            }
+        });
+
+        // Test if we can reach the API at all
+        fetch('/api/admin/login', { method: 'GET' })
+            .then(response => {
+                document.getElementById('debug').innerHTML += `<div class="debug">API Test: GET request status: ${response.status}</div>`;
+            })
+            .catch(error => {
+                document.getElementById('debug').innerHTML += `<div class="debug">API Test: GET request failed: ${error.message}</div>`;
+            });
+    </script>
+</body>
+
+</html>

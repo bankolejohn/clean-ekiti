@@ -105,6 +105,25 @@ sudo tail -f /var/log/nginx/error.log
 
 ### Common Issues
 
+**Build fails with "Cannot find module 'tailwindcss'":**
+```bash
+# Install missing dependencies
+npm install tailwindcss autoprefixer postcss --save-dev
+npm run build
+```
+
+**Build fails with missing components:**
+```bash
+# Verify all files were cloned
+ls -la components/
+ls -la app/
+
+# If missing, re-clone repository
+rm -rf clean-ekiti
+git clone https://github.com/your-username/clean-ekiti.git
+cd clean-ekiti
+```
+
 **App won't start:**
 - Check `.env.local` has correct credentials
 - Verify Supabase database is set up
@@ -123,6 +142,18 @@ sudo tail -f /var/log/nginx/error.log
 - Test config: `sudo nginx -t`
 - Check logs: `sudo tail -f /var/log/nginx/error.log`
 - Verify domain configuration
+
+**Memory issues during build:**
+```bash
+# Increase swap space
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# Build with more memory
+NODE_OPTIONS="--max-old-space-size=4096" npm run build
+```
 
 ### Performance Tips
 

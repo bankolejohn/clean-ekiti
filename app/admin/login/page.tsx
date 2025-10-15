@@ -11,24 +11,36 @@ export default function AdminLogin() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Login form submitted', formData)
     setLoading(true)
     setError('')
 
     try {
+      console.log('Making API request...')
       const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       })
 
+      console.log('API response:', response.status, response.ok)
+      
       if (response.ok) {
-        router.push('/admin')
+        const data = await response.json()
+        console.log('Login successful, data:', data)
+        console.log('Attempting navigation to /admin')
+        
+        // Use window.location for reliable navigation
+        console.log('Redirecting to admin dashboard...')
+        window.location.href = '/admin'
       } else {
         const data = await response.json()
+        console.log('Login failed, error data:', data)
         setError(data.error || 'Login failed')
       }
     } catch (error) {
-      setError('Login failed')
+      console.error('Login error:', error)
+      setError('Login failed: ' + (error as Error).message)
     } finally {
       setLoading(false)
     }

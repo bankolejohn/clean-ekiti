@@ -1,0 +1,70 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [ develop, staging ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests (if any)
+      run: npm run lint
+
+    - name: Build application
+      run: npm run build
+
+    - name: Deploy to Staging Server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.STAGING_HOST }}
+        username: ${{ secrets.STAGING_USER }}
+        key: ${{ secrets.STAGING_SSH_KEY }}
+        script: |
+          cd /home/ubuntu/clean-ekiti-staging
+          
+          # Backup current version
+          cp -r .next .next.backup || true
+          
+          # Pull latest changes
+          git pull origin ${{ github.ref_name }}
+          
+          # Install dependencies
+          npm ci
+          
+          # Build application
+          NODE_OPTIONS="--max-old-space-size=2048" npm run build
+          
+          # Restart application
+          pm2 restart cleanekiti-staging || pm2 start npm --name "cleanekiti-staging" -- start
+          
+          # Health check
+          sleep 10
+          curl -f http://localhost:3001/api/reports || exit 1
+          
+          echo "✅ Staging deployment successful!"
+
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "🚀 Staging deployment successful!"
+          echo "🌐 Staging URL: http://${{ secrets.STAGING_HOST }}"
+        else
+          echo "❌ Staging deployment failed!"
+        fi

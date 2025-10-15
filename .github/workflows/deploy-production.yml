@@ -1,0 +1,97 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      confirm_deployment:
+        description: 'Type "DEPLOY" to confirm production deployment'
+        required: true
+        default: ''
+
+jobs:
+  deploy-production:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm_deployment == 'DEPLOY' || github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests
+      run: npm run lint
+
+    - name: Build application
+      run: npm run build
+
+    - name: Deploy to Production Server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.PRODUCTION_HOST }}
+        username: ${{ secrets.PRODUCTION_USER }}
+        key: ${{ secrets.PRODUCTION_SSH_KEY }}
+        script: |
+          cd /home/ubuntu/clean-ekiti
+          
+          # Create backup
+          timestamp=$(date +%Y%m%d_%H%M%S)
+          cp -r .next .next.backup_$timestamp || true
+          
+          # Pull latest changes
+          git pull origin main
+          
+          # Install dependencies
+          npm ci
+          
+          # Build application
+          NODE_OPTIONS="--max-old-space-size=2048" npm run build
+          
+          # Zero-downtime restart
+          pm2 reload cleanekiti
+          
+          # Health check
+          sleep 15
+          curl -f http://localhost:3000/api/reports || exit 1
+          
+          # Clean old backups (keep last 3)
+          ls -t .next.backup_* 2>/dev/null | tail -n +4 | xargs rm -rf || true
+          
+          echo "✅ Production deployment successful!"
+
+    - name: Rollback on failure
+      if: failure()
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.PRODUCTION_HOST }}
+        username: ${{ secrets.PRODUCTION_USER }}
+        key: ${{ secrets.PRODUCTION_SSH_KEY }}
+        script: |
+          cd /home/ubuntu/clean-ekiti
+          
+          # Restore from backup
+          if [ -d ".next.backup" ]; then
+            rm -rf .next
+            mv .next.backup .next
+            pm2 restart cleanekiti
+            echo "🔄 Rollback completed"
+          fi
+
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "🚀 Production deployment successful!"
+          echo "🌐 Production URL: http://${{ secrets.PRODUCTION_HOST }}"
+        else
+          echo "❌ Production deployment failed and rolled back!"
+        fi

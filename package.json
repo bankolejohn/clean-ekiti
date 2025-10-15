@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy:staging": "echo 'Push to staging branch to deploy'",
+    "deploy:production": "echo 'Push to main branch to deploy'"
   },
   "dependencies": {
     "next": "14.0.4",

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test Admin Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        input,
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: #2E8B57;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .result {
+            background: #f0f0f0;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+
+        .error {
+            background: #ffe6e6;
+            color: red;
+        }
+
+        .success {
+            background: #e6ffe6;
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Test Admin Login</h2>
+    <form id="testForm">
+        <input type="text" id="username" placeholder="Username" value="bankolejohn@gmail.com">
+        <input type="password" id="password" placeholder="Password" value="admin123">
+        <button type="submit">Test Login</button>
+    </form>
+
+    <div id="results"></div>
+
+    <script>
+        document.getElementById('testForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultsDiv = document.getElementById('results');
+
+            resultsDiv.innerHTML = '<div class="result">Testing login...</div>';
+
+            try {
+                // Test login
+                const loginResponse = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                    credentials: 'include'
+                });
+
+                resultsDiv.innerHTML += `<div class="result">Login Response: ${loginResponse.status} ${loginResponse.statusText}</div>`;
+
+                const loginData = await loginResponse.json();
+                resultsDiv.innerHTML += `<div class="result">Login Data: ${JSON.stringify(loginData, null, 2)}</div>`;
+
+                if (loginResponse.ok) {
+                    resultsDiv.innerHTML += '<div class="result success">✅ Login successful! Testing reports...</div>';
+
+                    // Test reports API
+                    const reportsResponse = await fetch('/api/admin/reports', {
+                        credentials: 'include'
+                    });
+
+                    resultsDiv.innerHTML += `<div class="result">Reports Response: ${reportsResponse.status} ${reportsResponse.statusText}</div>`;
+
+                    if (reportsResponse.ok) {
+                        const reportsData = await reportsResponse.json();
+                        resultsDiv.innerHTML += `<div class="result success">✅ Reports API working! Found ${reportsData.reports.length} reports</div>`;
+                        resultsDiv.innerHTML += `<div class="result">Reports: ${JSON.stringify(reportsData, null, 2)}</div>`;
+
+                        // Test navigation
+                        resultsDiv.innerHTML += '<div class="result success">✅ All APIs working! You can now try the admin dashboard.</div>';
+                        resultsDiv.innerHTML += '<div class="result"><a href="/admin" target="_blank">Open Admin Dashboard</a></div>';
+                    } else {
+                        const errorData = await reportsResponse.json();
+                        resultsDiv.innerHTML += `<div class="result error">❌ Reports API failed: ${JSON.stringify(errorData)}</div>`;
+                    }
+                } else {
+                    resultsDiv.innerHTML += `<div class="result error">❌ Login failed: ${JSON.stringify(loginData)}</div>`;
+                }
+
+            } catch (error) {
+                resultsDiv.innerHTML += `<div class="result error">❌ Error: ${error.message}</div>`;
+            }
+        });
+    </script>
+</body>
+
+</html>
