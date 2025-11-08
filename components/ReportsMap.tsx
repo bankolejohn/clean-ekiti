@@ -13,6 +13,7 @@ export default function ReportsMap({ reports, height = 'h-full' }: ReportsMapPro
   const [loading, setLoading] = useState(true)
   const mapRef = useRef<any>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
+  const mapIdRef = useRef(`map-${Math.random().toString(36).substr(2, 9)}`)
 
   useEffect(() => {
     // Fetch reports if not provided
@@ -36,8 +37,19 @@ export default function ReportsMap({ reports, height = 'h-full' }: ReportsMapPro
       return
     }
 
+    // Check if container already has a Leaflet map
+    const container = mapContainerRef.current
+    if ((container as any)._leaflet_id) {
+      return
+    }
+
     // Dynamically import Leaflet only on client side
     import('leaflet').then((L) => {
+      // Double check after async import
+      if (mapRef.current || (container as any)._leaflet_id) {
+        return
+      }
+
       // Fix default marker icon
       delete (L.Icon.Default.prototype as any)._getIconUrl
       L.Icon.Default.mergeOptions({
@@ -47,7 +59,7 @@ export default function ReportsMap({ reports, height = 'h-full' }: ReportsMapPro
       })
 
       // Initialize map
-      const map = L.map(mapContainerRef.current!, {
+      const map = L.map(container, {
         center: [7.6219, 5.2206], // Ado-Ekiti coordinates
         zoom: 12,
         scrollWheelZoom: true,
@@ -105,7 +117,11 @@ export default function ReportsMap({ reports, height = 'h-full' }: ReportsMapPro
 
   return (
     <div className={height}>
-      <div ref={mapContainerRef} className="h-full w-full rounded-lg" />
+      <div 
+        ref={mapContainerRef} 
+        id={mapIdRef.current}
+        className="h-full w-full rounded-lg" 
+      />
     </div>
   )
 }
