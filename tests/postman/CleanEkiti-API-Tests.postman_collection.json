@@ -1,0 +1,444 @@
+{
+  "info": {
+    "name": "CleanEkiti API Tests",
+    "description": "Comprehensive API testing for CleanEkiti platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Public API Tests",
+      "item": [
+        {
+          "name": "Get All Reports",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has reports array', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('reports');",
+                  "    pm.expect(jsonData.reports).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 2000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reports",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports"]
+            }
+          }
+        },
+        {
+          "name": "Submit New Report",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has report object', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('report');",
+                  "    pm.expect(jsonData.report).to.have.property('id');",
+                  "    pm.expect(jsonData.report).to.have.property('category');",
+                  "    pm.expect(jsonData.report).to.have.property('status');",
+                  "});",
+                  "",
+                  "pm.test('Report has correct default status', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.report.status).to.equal('pending');",
+                  "});",
+                  "",
+                  "// Store report ID for later tests",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('test_report_id', jsonData.report.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "category",
+                  "value": "dumping",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Test report from Postman API testing",
+                  "type": "text"
+                },
+                {
+                  "key": "latitude",
+                  "value": "7.6219",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "5.2206",
+                  "type": "text"
+                },
+                {
+                  "key": "location_name",
+                  "value": "Test Location, Ado-Ekiti",
+                  "type": "text"
+                },
+                {
+                  "key": "reporter_email",
+                  "value": "test@example.com",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reports",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Authentication Tests",
+      "item": [
+        {
+          "name": "Admin Login - Valid Credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has success message', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.include('successful');",
+                  "});",
+                  "",
+                  "pm.test('Response has admin data', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('admin');",
+                  "    pm.expect(jsonData.admin).to.have.property('id');",
+                  "    pm.expect(jsonData.admin).to.have.property('username');",
+                  "});",
+                  "",
+                  "pm.test('Admin token cookie is set', function () {",
+                  "    pm.expect(pm.cookies.has('admin-token')).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"bankolejohn@gmail.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "login"]
+            }
+          }
+        },
+        {
+          "name": "Admin Login - Invalid Credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Response has error message', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"invalid@example.com\",\n  \"password\": \"wrongpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin API Tests (Authenticated)",
+      "item": [
+        {
+          "name": "Get Admin Reports",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// First login to get admin token",
+                  "pm.sendRequest({",
+                  "    url: pm.collectionVariables.get('base_url') + '/api/admin/login',",
+                  "    method: 'POST',",
+                  "    header: {",
+                  "        'Content-Type': 'application/json'",
+                  "    },",
+                  "    body: {",
+                  "        mode: 'raw',",
+                  "        raw: JSON.stringify({",
+                  "            username: 'bankolejohn@gmail.com',",
+                  "            password: 'admin123'",
+                  "        })",
+                  "    }",
+                  "}, function (err, response) {",
+                  "    if (response.code === 200) {",
+                  "        console.log('Admin login successful');",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has reports and stats', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('reports');",
+                  "    pm.expect(jsonData).to.have.property('stats');",
+                  "    pm.expect(jsonData.reports).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Stats object has expected properties', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const stats = jsonData.stats;",
+                  "    // Stats should have status counts",
+                  "    pm.expect(stats).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/reports",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "reports"]
+            }
+          }
+        },
+        {
+          "name": "Update Report Status",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Login first and get a real report ID",
+                  "pm.sendRequest({",
+                  "    url: pm.collectionVariables.get('base_url') + '/api/admin/login',",
+                  "    method: 'POST',",
+                  "    header: {",
+                  "        'Content-Type': 'application/json'",
+                  "    },",
+                  "    body: {",
+                  "        mode: 'raw',",
+                  "        raw: JSON.stringify({",
+                  "            username: 'bankolejohn@gmail.com',",
+                  "            password: 'admin123'",
+                  "        })",
+                  "    }",
+                  "}, function (err, response) {",
+                  "    if (response.code === 200) {",
+                  "        // Get reports to find a valid ID",
+                  "        pm.sendRequest({",
+                  "            url: pm.collectionVariables.get('base_url') + '/api/admin/reports',",
+                  "            method: 'GET'",
+                  "        }, function (err, reportsResponse) {",
+                  "            if (reportsResponse.code === 200) {",
+                  "                const data = reportsResponse.json();",
+                  "                if (data.reports && data.reports.length > 0) {",
+                  "                    pm.collectionVariables.set('test_report_id', data.reports[0].id);",
+                  "                }",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has updated report', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('report');",
+                  "    pm.expect(jsonData.report).to.have.property('status');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{test_report_id}}\",\n  \"status\": \"investigating\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/reports",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "reports"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Performance Tests",
+      "item": [
+        {
+          "name": "Load Test - Multiple Report Submissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Response time is acceptable', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "category",
+                  "value": "pollution",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Load test report {{$randomInt}}",
+                  "type": "text"
+                },
+                {
+                  "key": "latitude",
+                  "value": "7.6219",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "5.2206",
+                  "type": "text"
+                },
+                {
+                  "key": "location_name",
+                  "value": "Load Test Location {{$randomInt}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reports",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

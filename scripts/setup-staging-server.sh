@@ -29,12 +29,16 @@ cd clean-ekiti-staging
 # Switch to develop/staging branch
 git checkout -b staging || git checkout staging
 
-# Add swap space for small instances
-sudo fallocate -l 2G /swapfile
+# Add swap space for small instances (4GB for better performance)
+sudo fallocate -l 4G /swapfile
 sudo chmod 600 /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# Optimize Node.js memory usage
+echo 'export NODE_OPTIONS="--max-old-space-size=1536"' >> ~/.bashrc
+source ~/.bashrc
 
 # Create staging environment file
 cat > .env.local << EOF

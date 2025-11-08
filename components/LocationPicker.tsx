@@ -16,21 +16,8 @@ export default function LocationPicker({ onLocationSelect, initialPosition }: Lo
   const [position, setPosition] = useState<[number, number]>(initialPosition)
 
   useEffect(() => {
-    // Try to get user's current location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const newPos: [number, number] = [pos.coords.latitude, pos.coords.longitude]
-          setPosition(newPos)
-          onLocationSelect(pos.coords.latitude, pos.coords.longitude)
-        },
-        () => {
-          // Use default position if geolocation fails
-          onLocationSelect(initialPosition[0], initialPosition[1])
-        }
-      )
-    }
-  }, [])
+    setPosition(initialPosition)
+  }, [initialPosition])
 
   const MapEvents = () => {
     const map = require('react-leaflet').useMapEvents({

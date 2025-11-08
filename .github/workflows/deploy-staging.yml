@@ -51,11 +51,25 @@ jobs:
           NODE_OPTIONS="--max-old-space-size=2048" npm run build
           
           # Restart application
-          pm2 restart cleanekiti-staging || pm2 start npm --name "cleanekiti-staging" -- start
+          PORT=3001 pm2 restart cleanekiti-staging || PORT=3001 pm2 start npm --name "cleanekiti-staging" -- start
           
-          # Health check
-          sleep 10
-          curl -f http://localhost:3001/api/reports || exit 1
+          # Wait for application to start
+          sleep 15
+          
+          # Health check with retries
+          for i in {1..5}; do
+            if curl -f http://localhost:3001/api/reports; then
+              echo "✅ Health check passed on attempt $i"
+              break
+            else
+              echo "⏳ Health check failed, attempt $i/5, retrying in 5s..."
+              sleep 5
+              if [ $i -eq 5 ]; then
+                echo "❌ Health check failed after 5 attempts"
+                exit 1
+              fi
+            fi
+          done
           
           echo "✅ Staging deployment successful!"
 

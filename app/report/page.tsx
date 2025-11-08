@@ -2,61 +2,79 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
 import { CreateReportData } from '@/types'
 import Navigation from '@/components/Navigation'
-
-const LocationPicker = dynamic(() => import('@/components/LocationPicker'), { ssr: false })
+import ReportForm from '@/components/ReportForm'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 export default function ReportPage() {
   const router = useRouter()
-  const [formData, setFormData] = useState<CreateReportData>({
-    category: 'dumping',
-    description: '',
-    latitude: 7.6219,
-    longitude: 5.2206,
-    reporter_email: ''
-  })
-  const [image, setImage] = useState<File | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
-    const submitData = new FormData()
-    submitData.append('category', formData.category)
-    submitData.append('description', formData.description || '')
-    submitData.append('latitude', formData.latitude.toString())
-    submitData.append('longitude', formData.longitude.toString())
-    submitData.append('reporter_email', formData.reporter_email || '')
-    if (image) submitData.append('image', image)
+  /**
+   * Handle report submission with enhanced error handling
+   */
+  const handleReportSubmit = async (data: CreateReportData, image?: File) => {
+    setIsSubmitting(true)
+    setError(null)
 
     try {
-      const response = await fetch('/api/reports', {
-        method: 'POST',
-        body: submitData
+      const formData = new FormData()
+      
+      // Append form fields
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value.toString())
+        }
       })
 
-      if (response.ok) {
-        setSuccess(true)
-        setTimeout(() => router.push('/'), 2000)
+      // Append image if provided
+      if (image) {
+        formData.append('image', image)
       }
-    } catch (error) {
-      console.error('Error submitting report:', error)
+
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to submit report')
+      }
+
+      const result = await response.json()
+      setSuccess(true)
+      
+      // Redirect after success
+      setTimeout(() => {
+        router.push('/')
+      }, 2000)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to submit report'
+      setError(errorMessage)
+      console.error('Report submission error:', err)
     } finally {
-      setLoading(false)
+      setIsSubmitting(false)
     }
   }
 
+  // Success state
   if (success) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center max-w-md mx-4">
           <div className="text-green-500 text-6xl mb-4">✓</div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Report Submitted!</h2>
-          <p className="text-gray-600">Thank you for helping keep Ekiti clean. Redirecting...</p>
+          <p className="text-gray-600 mb-4">
+            Thank you for helping keep Ekiti clean. Your report has been received and will be reviewed by local authorities.
+          </p>
+          <div className="flex items-center justify-center">
+            <LoadingSpinner size="sm" className="mr-2" />
+            <span className="text-sm text-gray-500">Redirecting to homepage...</span>
+          </div>
         </div>
       </div>
     )
@@ -65,96 +83,41 @@ export default function ReportPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
+      
       <header className="bg-primary text-white">
         <div className="container mx-auto px-4 py-6">
           <h1 className="text-2xl font-bold">Report Environmental Issue</h1>
+          <p className="text-green-100 mt-1">Help us keep Ekiti State clean and sustainable</p>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <form onSubmit={handleSubmit} className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
-          {/* Photo Upload */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Photo (Optional)
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setImage(e.target.files?.[0] || null)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-          </div>
-
-          {/* Category */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Category *
-            </label>
-            <select
-              value={formData.category}
-              onChange={(e) => setFormData({...formData, category: e.target.value as any})}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              required
-            >
-              <option value="dumping">Illegal Dumping</option>
-              <option value="flooding">Flooding</option>
-              <option value="pollution">Pollution</option>
-              <option value="drainage">Blocked Drainage</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          {/* Description */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description (Optional)
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              rows={4}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="Describe the environmental issue..."
-            />
-          </div>
-
-          {/* Location Picker */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Location *
-            </label>
-            <div className="h-64 border border-gray-300 rounded-lg overflow-hidden">
-              <LocationPicker
-                onLocationSelect={(lat, lng) => setFormData({...formData, latitude: lat, longitude: lng})}
-                initialPosition={[formData.latitude, formData.longitude]}
-              />
+      <div className="container mx-auto px-4 py-4 md:py-8">
+        {/* Error Display */}
+        {error && (
+          <div className="max-w-2xl mx-auto mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <h3 className="text-sm font-medium text-red-800">Submission Failed</h3>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
+              </div>
             </div>
+            <button
+              onClick={() => setError(null)}
+              className="mt-3 text-sm text-red-600 hover:text-red-800 underline"
+            >
+              Dismiss
+            </button>
           </div>
+        )}
 
-          {/* Email */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email (Optional - for updates)
-            </label>
-            <input
-              type="email"
-              value={formData.reporter_email}
-              onChange={(e) => setFormData({...formData, reporter_email: e.target.value})}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="your@email.com"
-            />
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-accent text-white py-3 px-6 rounded-lg font-semibold hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? 'Submitting...' : 'Submit Report'}
-          </button>
-        </form>
+        {/* Report Form */}
+        <ReportForm 
+          onSubmit={handleReportSubmit}
+          isSubmitting={isSubmitting}
+        />
       </div>
     </div>
   )

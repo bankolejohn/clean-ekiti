@@ -17,8 +17,21 @@ interface ReportsMapProps {
 export default function ReportsMap({ reports, height = 'h-full' }: ReportsMapProps) {
   const [mapReports, setMapReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
+  const [mapMounted, setMapMounted] = useState(false)
 
   useEffect(() => {
+    // Fix Leaflet default icon issue (only once)
+    if (typeof window !== 'undefined' && !mapMounted) {
+      const L = require('leaflet');
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+      });
+      setMapMounted(true);
+    }
+
     if (reports) {
       setMapReports(reports)
       setLoading(false)
@@ -31,7 +44,7 @@ export default function ReportsMap({ reports, height = 'h-full' }: ReportsMapPro
         })
         .catch(() => setLoading(false))
     }
-  }, [reports])
+  }, [reports, mapMounted])
 
   if (loading) {
     return <div className={`${height} bg-gray-200 animate-pulse rounded-lg`} />
@@ -49,11 +62,19 @@ export default function ReportsMap({ reports, height = 'h-full' }: ReportsMapPro
   }
 
   return (
-    <div className={height}>
-      <MapContainer center={center} zoom={12} className="h-full w-full">
+    <div className={height} key="map-container">
+      <MapContainer 
+        center={center} 
+        zoom={12} 
+        className="h-full w-full" 
+        style={{ height: '100%', width: '100%' }}
+        scrollWheelZoom={true}
+      >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          maxZoom={19}
+          minZoom={1}
         />
         {mapReports.map((report) => (
           <Marker key={report.id} position={[report.latitude, report.longitude]}>
