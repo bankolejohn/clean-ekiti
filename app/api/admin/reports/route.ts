@@ -81,19 +81,23 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       throw new ValidationError('Invalid status value');
     }
 
-    // Update report status
+    // Update report status (without updated_by since column doesn't exist)
     const { data: report, error: updateError } = await supabaseAdmin
       .from('reports')
       .update({ 
         status, 
         updated_at: new Date().toISOString(),
-        updated_by: admin.adminId,
       })
       .eq('id', id)
       .select()
       .single();
 
-    if (updateError || !report) {
+    if (updateError) {
+      console.error('Update error:', updateError);
+      throw new NotFoundError(`Report not found: ${updateError.message}`);
+    }
+
+    if (!report) {
       throw new NotFoundError('Report not found');
     }
 

@@ -41,18 +41,35 @@ export default function AdminDashboard() {
       })
 
       if (response.ok) {
-        setReports(reports.map(report => 
+        // Update the reports list
+        const updatedReports = reports.map(report => 
           report.id === id ? { ...report, status } : report
-        ))
+        )
+        setReports(updatedReports)
+        
+        // Recalculate stats
+        const newStats = updatedReports.reduce((acc: any, report) => {
+          acc[report.status] = (acc[report.status] || 0) + 1
+          return acc
+        }, {})
+        setStats({ byStatus: newStats })
+        
         setSelectedReport(null)
+        
+        // Show success message
+        alert('Report status updated successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Failed to update: ${error.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Failed to update report:', error)
+      alert('Failed to update report. Please try again.')
     }
   }
 
   const deleteReport = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this report?')) return
+    if (!confirm('Are you sure you want to delete this report? This action cannot be undone.')) return
 
     try {
       const response = await fetch(`/api/admin/reports?id=${id}`, {
@@ -60,11 +77,28 @@ export default function AdminDashboard() {
       })
 
       if (response.ok) {
-        setReports(reports.filter(report => report.id !== id))
+        // Update the reports list
+        const updatedReports = reports.filter(report => report.id !== id)
+        setReports(updatedReports)
+        
+        // Recalculate stats
+        const newStats = updatedReports.reduce((acc: any, report) => {
+          acc[report.status] = (acc[report.status] || 0) + 1
+          return acc
+        }, {})
+        setStats({ byStatus: newStats })
+        
         setSelectedReport(null)
+        
+        // Show success message
+        alert('Report deleted successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Failed to delete: ${error.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Failed to delete report:', error)
+      alert('Failed to delete report. Please try again.')
     }
   }
 
