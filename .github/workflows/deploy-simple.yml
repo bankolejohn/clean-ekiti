@@ -66,22 +66,18 @@ jobs:
           git fetch origin
           git reset --hard origin/${{ github.ref_name }}
           
-          # Create .env.local with proper formatting (no leading spaces)
+          # Create .env.local
           echo "Creating .env.local file..."
-          cat > .env.local <<EOF
-NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
-CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
-CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
-JWT_SECRET=${{ secrets.JWT_SECRET }}
-NODE_ENV=production
-EOF
-          
-          echo "Environment file created. Verifying..."
-          echo "Variables found: $(grep -c "=" .env.local)"
-          head -n 3 .env.local | sed 's/=.*/=***/'
+          cat > .env.local << EOF
+          NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          NODE_ENV=production
+          EOF
           
           echo "Environment file created"
           
