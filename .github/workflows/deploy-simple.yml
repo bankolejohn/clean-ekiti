@@ -1,0 +1,76 @@
+name: Deploy to EC2 (Simple)
+
+on:
+  push:
+    branches: [ develop ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linter
+      run: npm run lint
+
+    - name: Build application
+      run: npm run build
+      env:
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        #NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          cd /home/ubuntu/cleanekiti-mvp
+          
+          # Pull latest code
+          git pull origin ${{ github.ref_name }}
+          
+          # Create .env.local directly (no script needed)
+          cat > .env.local << 'EOF'
+          NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          #RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+          #ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+          #NEXT_PUBLIC_MAPBOX_TOKEN=${{ secrets.MAPBOX_TOKEN }}
+          NODE_ENV=production
+          EOF
+          
+          # Install and build
+          npm ci
+          npm run build
+          
+          # Restart
+          pm2 restart cleanekiti || pm2 start npm --name "cleanekiti" -- start
+          
+          # Health check
+          sleep 10
+          curl -f http://localhost:3000/ || echo "Warning: Health check failed"
+
+    - name: Status
+      if: always()
+      run: |
+        echo "Deployment ${{ job.status }}"
