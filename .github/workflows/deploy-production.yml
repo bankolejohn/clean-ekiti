@@ -3,17 +3,12 @@ name: Deploy to Production
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
-    inputs:
-      confirm_deployment:
-        description: 'Type "DEPLOY" to confirm production deployment'
-        required: true
-        default: ''
+  workflow_dispatch:  # Allow manual deployment
 
 jobs:
   deploy-production:
     runs-on: ubuntu-latest
-    if: github.event.inputs.confirm_deployment == 'DEPLOY' || github.event_name == 'push'
+    environment: production  # Use GitHub Environment for production secrets
     
     steps:
     - name: Checkout code
@@ -33,6 +28,12 @@ jobs:
 
     - name: Build application
       run: npm run build
+      env:
+        # Build-time environment variables
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+        NEXT_PUBLIC_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
 
     - name: Deploy to Production Server
       uses: appleboy/ssh-action@v1.0.0
@@ -40,58 +41,76 @@ jobs:
         host: ${{ secrets.PRODUCTION_HOST }}
         username: ${{ secrets.PRODUCTION_USER }}
         key: ${{ secrets.PRODUCTION_SSH_KEY }}
+        port: ${{ secrets.PRODUCTION_PORT || 22 }}
         script: |
-          cd /home/ubuntu/clean-ekiti
+          # Export environment variables
+          export SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
+          export SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+          export SUPABASE_SERVICE_ROLE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+          export CLOUDINARY_CLOUD_NAME="${{ secrets.CLOUDINARY_CLOUD_NAME }}"
+          export CLOUDINARY_API_KEY="${{ secrets.CLOUDINARY_API_KEY }}"
+          export CLOUDINARY_API_SECRET="${{ secrets.CLOUDINARY_API_SECRET }}"
+          export JWT_SECRET="${{ secrets.JWT_SECRET }}"
+          export RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
+          export ADMIN_EMAIL="${{ secrets.ADMIN_EMAIL }}"
+          export MAPBOX_TOKEN="${{ secrets.MAPBOX_TOKEN }}"
+          export APP_URL="${{ secrets.PRODUCTION_APP_URL }}"
+          export NODE_ENV="production"
           
-          # Create backup
-          timestamp=$(date +%Y%m%d_%H%M%S)
-          cp -r .next .next.backup_$timestamp || true
+          cd /var/www/cleanekiti
+          
+          # Backup current version
+          cp -r .next .next.backup || true
           
           # Pull latest changes
           git pull origin main
           
+          # Setup environment variables
+          chmod +x scripts/setup-env.sh
+          ./scripts/setup-env.sh
+          
           # Install dependencies
-          npm ci
+          npm ci --production=false
           
           # Build application
-          NODE_OPTIONS="--max-old-space-size=2048" npm run build
+          NODE_OPTIONS="--max-old-space-size=4096" npm run build
           
-          # Zero-downtime restart
-          pm2 reload cleanekiti
+          # Restart application with zero-downtime
+          PORT=3000 pm2 reload cleanekiti --update-env || PORT=3000 pm2 start npm --name "cleanekiti" -- start
           
-          # Health check
-          sleep 15
-          curl -f http://localhost:3000/api/reports || exit 1
+          # Wait for application to start
+          sleep 20
           
-          # Clean old backups (keep last 3)
-          ls -t .next.backup_* 2>/dev/null | tail -n +4 | xargs rm -rf || true
+          # Health check with retries
+          for i in {1..10}; do
+            if curl -f http://localhost:3000/api/health; then
+              echo "✅ Health check passed on attempt $i"
+              break
+            else
+              echo "⏳ Health check failed, attempt $i/10, retrying in 5s..."
+              sleep 5
+              if [ $i -eq 10 ]; then
+                echo "❌ Health check failed after 10 attempts"
+                # Rollback to backup
+                rm -rf .next
+                mv .next.backup .next
+                pm2 restart cleanekiti
+                exit 1
+              fi
+            fi
+          done
+          
+          # Cleanup backup
+          rm -rf .next.backup
           
           echo "✅ Production deployment successful!"
-
-    - name: Rollback on failure
-      if: failure()
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.PRODUCTION_HOST }}
-        username: ${{ secrets.PRODUCTION_USER }}
-        key: ${{ secrets.PRODUCTION_SSH_KEY }}
-        script: |
-          cd /home/ubuntu/clean-ekiti
-          
-          # Restore from backup
-          if [ -d ".next.backup" ]; then
-            rm -rf .next
-            mv .next.backup .next
-            pm2 restart cleanekiti
-            echo "🔄 Rollback completed"
-          fi
 
     - name: Notify deployment status
       if: always()
       run: |
         if [ ${{ job.status }} == 'success' ]; then
           echo "🚀 Production deployment successful!"
-          echo "🌐 Production URL: http://${{ secrets.PRODUCTION_HOST }}"
+          echo "🌐 Production URL: ${{ secrets.PRODUCTION_APP_URL }}"
         else
-          echo "❌ Production deployment failed and rolled back!"
+          echo "❌ Production deployment failed!"
         fi

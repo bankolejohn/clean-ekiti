@@ -9,6 +9,7 @@ on:
 jobs:
   deploy-staging:
     runs-on: ubuntu-latest
+    environment: staging  # Use GitHub Environment for staging secrets
     
     steps:
     - name: Checkout code
@@ -23,11 +24,17 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Run tests (if any)
+    - name: Run linter
       run: npm run lint
 
     - name: Build application
       run: npm run build
+      env:
+        # Build-time environment variables
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+        NEXT_PUBLIC_APP_URL: ${{ secrets.STAGING_APP_URL }}
 
     - name: Deploy to Staging Server
       uses: appleboy/ssh-action@v1.0.0
@@ -35,7 +42,23 @@ jobs:
         host: ${{ secrets.STAGING_HOST }}
         username: ${{ secrets.STAGING_USER }}
         key: ${{ secrets.STAGING_SSH_KEY }}
+        port: ${{ secrets.STAGING_PORT || 22 }}
+        envs: SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,CLOUDINARY_CLOUD_NAME,CLOUDINARY_API_KEY,CLOUDINARY_API_SECRET,JWT_SECRET,RESEND_API_KEY,ADMIN_EMAIL,MAPBOX_TOKEN,APP_URL,NODE_ENV
         script: |
+          # Export environment variables for the script
+          export SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
+          export SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+          export SUPABASE_SERVICE_ROLE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+          export CLOUDINARY_CLOUD_NAME="${{ secrets.CLOUDINARY_CLOUD_NAME }}"
+          export CLOUDINARY_API_KEY="${{ secrets.CLOUDINARY_API_KEY }}"
+          export CLOUDINARY_API_SECRET="${{ secrets.CLOUDINARY_API_SECRET }}"
+          export JWT_SECRET="${{ secrets.JWT_SECRET }}"
+          export RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
+          export ADMIN_EMAIL="${{ secrets.ADMIN_EMAIL }}"
+          export MAPBOX_TOKEN="${{ secrets.MAPBOX_TOKEN }}"
+          export APP_URL="${{ secrets.STAGING_APP_URL }}"
+          export NODE_ENV="staging"
+          
           cd /home/ubuntu/clean-ekiti-staging
           
           # Backup current version
@@ -43,6 +66,10 @@ jobs:
           
           # Pull latest changes
           git pull origin ${{ github.ref_name }}
+          
+          # Setup environment variables
+          chmod +x scripts/setup-env.sh
+          ./scripts/setup-env.sh
           
           # Install dependencies
           npm ci
@@ -58,7 +85,7 @@ jobs:
           
           # Health check with retries
           for i in {1..5}; do
-            if curl -f http://localhost:3001/api/reports; then
+            if curl -f http://localhost:3001/api/health; then
               echo "✅ Health check passed on attempt $i"
               break
             else
@@ -66,10 +93,17 @@ jobs:
               sleep 5
               if [ $i -eq 5 ]; then
                 echo "❌ Health check failed after 5 attempts"
+                # Rollback to backup
+                rm -rf .next
+                mv .next.backup .next
+                pm2 restart cleanekiti-staging
                 exit 1
               fi
             fi
           done
+          
+          # Cleanup backup
+          rm -rf .next.backup
           
           echo "✅ Staging deployment successful!"
 
@@ -78,8 +112,7 @@ jobs:
       run: |
         if [ ${{ job.status }} == 'success' ]; then
           echo "🚀 Staging deployment successful!"
-          echo "🌐 Staging URL: http://${{ secrets.STAGING_HOST }}"
+          echo "🌐 Staging URL: ${{ secrets.STAGING_APP_URL }}"
         else
           echo "❌ Staging deployment failed!"
         fi
-        # let's test
