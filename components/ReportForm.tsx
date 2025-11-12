@@ -223,7 +223,7 @@ export default function ReportForm({
     <>
       <form onSubmit={handleSubmit} className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-4 md:p-6">
         {/* Error Summary */}
-        {Object.keys(errors).length > 0 && (
+        {Object.values(errors).filter(Boolean).length > 0 && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
             <h3 className="text-sm font-medium text-red-800 mb-2">Please fix the following errors:</h3>
             <ul className="text-sm text-red-700 space-y-1">
