@@ -51,14 +51,14 @@ jobs:
           echo "User: $(whoami)"
           
           # Check if directory exists and is a valid git repo
-          if [ ! -d "/home/ubuntu/cleanekiti-mvp/.git" ]; then
+          if [ ! -d "/home/ubuntu/clean-ekiti/.git" ]; then
             echo "Git repository not found. Setting up fresh clone..."
             cd /home/ubuntu
-            rm -rf cleanekiti-mvp
-            git clone https://github.com/${{ github.repository }}.git cleanekiti-mvp
+            rm -rf clean-ekiti
+            git clone https://github.com/${{ github.repository }}.git clean-ekiti
           fi
           
-          cd /home/ubuntu/cleanekiti-mvp
+          cd /home/ubuntu/clean-ekiti
           echo "Changed to: $(pwd)"
           
           # Pull latest code
