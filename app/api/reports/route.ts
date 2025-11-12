@@ -104,18 +104,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let image_url: string | null = null;
     const imageFile = formData.get('image') as File;
     
+    console.log('Image file received:', {
+      hasFile: !!imageFile,
+      size: imageFile?.size,
+      type: imageFile?.type,
+      name: imageFile?.name
+    });
+    
     if (imageFile && imageFile.size > 0) {
       // Validate image file
       const fileValidation = validateFile(imageFile);
+      console.log('File validation result:', fileValidation);
+      
       if (!fileValidation.isValid) {
+        console.error('File validation failed:', fileValidation.error);
         throw new ValidationError(fileValidation.error!);
       }
 
       try {
+        console.log('Starting image upload to Cloudinary...');
         image_url = await uploadImage(imageFile);
+        console.log('Image uploaded successfully:', image_url);
       } catch (uploadError) {
         console.error('Image upload failed:', uploadError);
-        throw new ValidationError('Failed to upload image. Please try again.');
+        console.error('Upload error details:', {
+          message: uploadError instanceof Error ? uploadError.message : 'Unknown error',
+          stack: uploadError instanceof Error ? uploadError.stack : undefined
+        });
+        throw new ValidationError(`Failed to upload image: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
       }
     }
 

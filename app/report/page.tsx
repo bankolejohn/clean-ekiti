@@ -35,17 +35,29 @@ export default function ReportPage() {
         formData.append('image', image)
       }
 
+      console.log('Submitting report with data:', {
+        hasImage: !!image,
+        imageSize: image?.size,
+        imageType: image?.type,
+        category: data.category,
+        hasDescription: !!data.description
+      })
+
       const response = await fetch('/api/reports', {
         method: 'POST',
         body: formData,
       })
 
+      console.log('Response status:', response.status, response.statusText)
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to submit report')
+        console.error('Server error response:', errorData)
+        throw new Error(errorData.error || `Failed to submit report (${response.status})`)
       }
 
       const result = await response.json()
+      console.log('Report submitted successfully:', result)
       setSuccess(true)
       
       // Redirect after success

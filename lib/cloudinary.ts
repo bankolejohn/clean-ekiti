@@ -45,24 +45,43 @@ const UPLOAD_CONFIG = {
  * Upload image to Cloudinary with validation and security
  */
 export async function uploadImage(file: File): Promise<string> {
+  console.log('uploadImage called with file:', {
+    name: file.name,
+    size: file.size,
+    type: file.type
+  });
+
   // Validate file
   const validation = validateFile(file);
   if (!validation.isValid) {
+    console.error('File validation failed in uploadImage:', validation.error);
     throw new FileUploadError(validation.error);
   }
 
+  // Check Cloudinary configuration
+  console.log('Cloudinary config check:', {
+    hasCloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
+    hasApiKey: !!process.env.CLOUDINARY_API_KEY,
+    hasApiSecret: !!process.env.CLOUDINARY_API_SECRET,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME?.substring(0, 5) + '...'
+  });
+
   try {
     // Convert file to buffer
+    console.log('Converting file to buffer...');
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+    console.log('Buffer created, size:', buffer.length);
 
     // Upload to Cloudinary
+    console.log('Starting Cloudinary upload stream...');
     const result = await new Promise<any>((resolve, reject) => {
       const timeout = setTimeout(() => {
+        console.error('Upload timeout after', UPLOAD_CONFIG.timeout, 'ms');
         reject(new FileUploadError('Image upload timeout'));
       }, UPLOAD_CONFIG.timeout);
 
-      cloudinary.uploader.upload_stream(
+      const uploadStream = cloudinary.uploader.upload_stream(
         {
           ...UPLOAD_CONFIG,
           // Add timestamp to filename for uniqueness
@@ -72,26 +91,42 @@ export async function uploadImage(file: File): Promise<string> {
           clearTimeout(timeout);
           
           if (error) {
-            console.error('Cloudinary upload error:', error);
+            console.error('Cloudinary upload stream error:', {
+              message: error.message,
+              http_code: error.http_code,
+              name: error.name
+            });
             reject(new FileUploadError(`Upload failed: ${error.message}`));
           } else if (result) {
+            console.log('Upload successful:', {
+              url: result.secure_url,
+              public_id: result.public_id
+            });
             resolve(result);
           } else {
+            console.error('No error but no result returned');
             reject(new FileUploadError('Upload failed: No result returned'));
           }
         }
-      ).end(buffer);
+      );
+
+      console.log('Writing buffer to upload stream...');
+      uploadStream.end(buffer);
     });
 
     return result.secure_url;
   } catch (error) {
-    console.error('Image upload error:', error);
+    console.error('Image upload error caught:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     
     if (error instanceof FileUploadError) {
       throw error;
     }
     
-    throw new FileUploadError('Failed to upload image');
+    throw new FileUploadError(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
