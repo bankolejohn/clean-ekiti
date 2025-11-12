@@ -81,6 +81,16 @@ jobs:
           
           echo "Environment file created"
           
+          # Check if Node.js and npm are installed
+          if ! command -v node &> /dev/null; then
+            echo "Node.js not found. Installing Node.js 18..."
+            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+          fi
+          
+          echo "Node version: $(node -v)"
+          echo "NPM version: $(npm -v)"
+          
           # Install dependencies
           echo "Installing dependencies..."
           npm ci --production=false
@@ -95,31 +105,65 @@ jobs:
             sudo npm install -g pm2
           fi
           
-          # Restart or start PM2
-          echo "Managing PM2 process..."
-          if pm2 describe cleanekiti > /dev/null 2>&1; then
-            echo "Restarting existing PM2 process..."
-            pm2 restart cleanekiti
+          # Configure Nginx if not already configured
+          echo "Configuring Nginx..."
+          if [ ! -f /etc/nginx/sites-available/cleanekiti ]; then
+            sudo tee /etc/nginx/sites-available/cleanekiti > /dev/null << 'NGINX_EOF'
+          server {
+              listen 80;
+              server_name _;
+              client_max_body_size 10M;
+          
+              location / {
+                  proxy_pass http://localhost:3000;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_set_header Host $host;
+                  proxy_cache_bypass $http_upgrade;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+          }
+          NGINX_EOF
+            sudo ln -sf /etc/nginx/sites-available/cleanekiti /etc/nginx/sites-enabled/
+            sudo rm -f /etc/nginx/sites-enabled/default
+            sudo nginx -t && sudo systemctl reload nginx
+            echo "✅ Nginx configured"
           else
-            echo "Starting new PM2 process..."
-            pm2 start npm --name "cleanekiti" -- start
+            echo "✅ Nginx already configured"
           fi
+          
+          # Stop existing PM2 process to ensure clean restart
+          echo "Managing PM2 process..."
+          pm2 delete cleanekiti 2>/dev/null || true
+          
+          # Start PM2 with production mode
+          echo "Starting application in production mode..."
+          NODE_ENV=production pm2 start npm --name "cleanekiti" -- start
           
           # Save PM2 configuration
           pm2 save
           
+          # Setup PM2 startup script
+          sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ubuntu --hp /home/ubuntu || true
+          
           # Show PM2 status
           echo "=== PM2 Status ==="
           pm2 list
+          pm2 info cleanekiti
           
           # Health check
           echo "=== Health Check ==="
-          sleep 10
+          sleep 15
           if curl -f http://localhost:3000/ > /dev/null 2>&1; then
             echo "✅ Application is running successfully!"
+            echo "✅ App accessible at: http://localhost:3000"
           else
             echo "⚠️ Warning: Health check failed"
-            pm2 logs cleanekiti --lines 20 --nostream
+            echo "=== Recent Logs ==="
+            pm2 logs cleanekiti --lines 30 --nostream
           fi
           
           echo "=== Deployment Complete ==="
