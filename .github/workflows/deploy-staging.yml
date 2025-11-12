@@ -43,7 +43,7 @@ jobs:
         username: ${{ secrets.STAGING_USER }}
         key: ${{ secrets.STAGING_SSH_KEY }}
         port: ${{ secrets.STAGING_PORT || 22 }}
-        envs: SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,CLOUDINARY_CLOUD_NAME,CLOUDINARY_API_KEY,CLOUDINARY_API_SECRET,JWT_SECRET,RESEND_API_KEY,ADMIN_EMAIL,MAPBOX_TOKEN,APP_URL,NODE_ENV
+        envs: SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,CLOUDINARY_CLOUD_NAME,CLOUDINARY_API_KEY,CLOUDINARY_API_SECRET,JWT_SECRET
         script: |
           # Export environment variables for the script
           export SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
@@ -53,11 +53,11 @@ jobs:
           export CLOUDINARY_API_KEY="${{ secrets.CLOUDINARY_API_KEY }}"
           export CLOUDINARY_API_SECRET="${{ secrets.CLOUDINARY_API_SECRET }}"
           export JWT_SECRET="${{ secrets.JWT_SECRET }}"
-          export RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
-          export ADMIN_EMAIL="${{ secrets.ADMIN_EMAIL }}"
-          export MAPBOX_TOKEN="${{ secrets.MAPBOX_TOKEN }}"
-          export APP_URL="${{ secrets.STAGING_APP_URL }}"
-          export NODE_ENV="staging"
+          #export RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
+          #export ADMIN_EMAIL="${{ secrets.ADMIN_EMAIL }}"
+          #export MAPBOX_TOKEN="${{ secrets.MAPBOX_TOKEN }}"
+          #export APP_URL="${{ secrets.STAGING_APP_URL }}"
+          #export NODE_ENV="staging"
           
           cd /home/ubuntu/clean-ekiti-staging
           
