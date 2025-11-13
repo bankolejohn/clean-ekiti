@@ -68,22 +68,16 @@ jobs:
           
           # Create .env.local without leading spaces
           echo "Creating .env.local file..."
-          cat > .env.local <<ENVEOF
-NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
-CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
-CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
-JWT_SECRET=${{ secrets.JWT_SECRET }}
-NODE_ENV=production
-ENVEOF
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env.local
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env.local
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env.local
+          echo "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" >> .env.local
+          echo "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" >> .env.local
+          echo "CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}" >> .env.local
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env.local
+          echo "NODE_ENV=production" >> .env.local
           
-          # Remove any leading/trailing spaces from the file
-          sed -i 's/^[[:space:]]*//g' .env.local
-          sed -i 's/[[:space:]]*$//g' .env.local
-          
-          echo "Environment file created and cleaned"
+          echo "Environment file created"
           echo "Variables count: $(grep -c "=" .env.local)"
           echo "First 3 lines (values hidden):"
           head -n 3 .env.local | sed 's/=.*/=***/'
