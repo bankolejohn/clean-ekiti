@@ -6,25 +6,41 @@ import { v2 as cloudinary } from 'cloudinary';
 import { FileUploadError } from './errors';
 import { validateFile } from './validation';
 
-// Validate environment variables
-if (!process.env.CLOUDINARY_CLOUD_NAME) {
+// Validate and sanitize environment variables
+const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
+const apiKey = process.env.CLOUDINARY_API_KEY?.trim();
+const apiSecret = process.env.CLOUDINARY_API_SECRET?.trim();
+
+if (!cloudName) {
   throw new Error('CLOUDINARY_CLOUD_NAME environment variable is required');
 }
 
-if (!process.env.CLOUDINARY_API_KEY) {
+if (!apiKey) {
   throw new Error('CLOUDINARY_API_KEY environment variable is required');
 }
 
-if (!process.env.CLOUDINARY_API_SECRET) {
+if (!apiSecret) {
   throw new Error('CLOUDINARY_API_SECRET environment variable is required');
+}
+
+// Validate format (basic check)
+if (cloudName.includes(' ') || apiKey.includes(' ') || apiSecret.includes(' ')) {
+  console.error('Cloudinary credentials contain spaces - this will cause authentication errors');
+  throw new Error('Invalid Cloudinary credentials format - credentials contain spaces');
 }
 
 // Configure Cloudinary
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: cloudName,
+  api_key: apiKey,
+  api_secret: apiSecret,
   secure: true, // Always use HTTPS
+});
+
+console.log('Cloudinary configured successfully:', {
+  cloud_name: cloudName,
+  api_key_length: apiKey.length,
+  api_secret_length: apiSecret.length
 });
 
 /**
@@ -94,9 +110,21 @@ export async function uploadImage(file: File): Promise<string> {
             console.error('Cloudinary upload stream error:', {
               message: error.message,
               http_code: error.http_code,
-              name: error.name
+              name: error.name,
+              error: error
             });
-            reject(new FileUploadError(`Upload failed: ${error.message}`));
+            
+            // Provide more specific error messages
+            let errorMessage = error.message;
+            if (error.http_code === 401 || error.http_code === 403) {
+              errorMessage = 'Authentication failed. Please check Cloudinary credentials.';
+            } else if (error.http_code === 500) {
+              errorMessage = 'Cloudinary server error. Please check your credentials and try again.';
+            } else if (error.message?.includes('Invalid JSON')) {
+              errorMessage = 'Invalid Cloudinary configuration. Please verify your credentials.';
+            }
+            
+            reject(new FileUploadError(errorMessage));
           } else if (result) {
             console.log('Upload successful:', {
               url: result.secure_url,
